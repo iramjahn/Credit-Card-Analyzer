@@ -10,9 +10,11 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
+from backend.api.routes.auth import router as auth_router
 from backend.api.routes.cards import router as cards_router
 from backend.api.routes.transactions import router as transactions_router
 from backend.api.routes.ml import router as ml_router
+from backend.api.routes.plaid import router as plaid_router
 from backend.database.connection import init_db
 
 @asynccontextmanager
@@ -35,9 +37,11 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+app.include_router(auth_router)
 app.include_router(cards_router)
 app.include_router(transactions_router)
 app.include_router(ml_router)
+app.include_router(plaid_router)
 
 @app.get("/")
 def read_root():

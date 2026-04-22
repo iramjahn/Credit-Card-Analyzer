@@ -1,0 +1,42 @@
+{
+  "permissions": {
+    "allow": [
+      "Read(//c/Users/iramj/everything-claude-code/**)",
+      "Bash(npm install:*)",
+      "Bash(python -c \"import ast; ast.parse\\(open\\(''backend/api/main.py''\\).read\\(\\)\\); print\\(''syntax OK''\\)\")",
+      "Bash(mkdir -p ~/.claude/rules)",
+      "Bash(cp -R ~/everything-claude-code/rules/common ~/.claude/rules/)",
+      "Bash(cp -R ~/everything-claude-code/rules/typescript ~/.claude/rules/)",
+      "Bash(python -c \"import ast; ast.parse\\(open\\(''backend/database/connection.py''\\).read\\(\\)\\); print\\(''syntax OK''\\)\")",
+      "Bash(python -m pytest backend/tests/test_transactions.py::test_init_db_creates_tables -v)",
+      "Bash(pip install:*)",
+      "WebSearch",
+      "Bash(python -m pytest backend/tests/test_transactions.py::test_add_transaction backend/tests/test_transactions.py::test_get_user_transactions backend/tests/test_transactions.py::test_invalid_category_rejected -v)",
+      "WebFetch(domain:developers.figma.com)",
+      "WebFetch(domain:github.com)",
+      "Bash(claude mcp:*)",
+      "Bash(python -m pytest backend/tests/test_transactions.py -v)",
+      "Bash(npx skills:*)",
+      "Bash(python -m pytest backend/tests/test_ml.py -v)",
+      "Bash(python -m pytest backend/tests/test_ml.py::test_seed_profiles_have_correct_shape backend/tests/test_ml.py::test_seed_profiles_have_distinct_archetypes -v)",
+      "Bash(python -m pytest backend/tests/test_ml.py::test_clusterer_fits_without_error backend/tests/test_ml.py::test_clusterer_predicts_cluster_id backend/tests/test_ml.py::test_clusterer_cluster_centers_shape -v)",
+      "WebFetch(domain:raw.githubusercontent.com)",
+      "Bash(mkdir -p ~/.claude/agents)",
+      "Bash(curl -sL \"https://raw.githubusercontent.com/VoltAgent/awesome-claude-code-subagents/main/categories/01-core-development/frontend-developer.md\" -o ~/.claude/agents/frontend-developer.md)",
+      "Bash(curl -sL \"https://raw.githubusercontent.com/VoltAgent/awesome-claude-code-subagents/main/categories/01-core-development/ui-designer.md\" -o ~/.claude/agents/ui-designer.md)",
+      "Bash(curl -sL \"https://raw.githubusercontent.com/VoltAgent/awesome-claude-code-subagents/main/categories/04-quality-security/accessibility-tester.md\" -o ~/.claude/agents/accessibility-tester.md)",
+      "Bash(curl -sL \"https://raw.githubusercontent.com/VoltAgent/awesome-claude-code-subagents/main/categories/02-language-specialists/nextjs-developer.md\" -o ~/.claude/agents/nextjs-developer.md)",
+      "Bash(uipro init:*)",
+      "Bash(python -m pytest backend/tests/test_ml.py::test_recommender_returns_card_id backend/tests/test_ml.py::test_recommender_favors_dining_card_for_heavy_diner -v)",
+      "Bash(python -m pytest backend/tests/test_ml_api.py -v)",
+      "Bash(python -m pytest backend/tests/ -v)",
+      "WebFetch(domain:repomix.com)",
+      "WebFetch(domain:www.npmjs.com)",
+      "Bash(curl:*)",
+      "Bash(python -m json.tool)",
+      "Bash(python -c \"import json,sys; spec=json.load\\(sys.stdin\\); tags=list\\({p.get\\(''''tags'''',['''''''']\\)[0] for p in [v for path in spec[''''paths''''].values\\(\\) for v in path.values\\(\\)]}\\); print\\(''''Route groups:'''', sorted\\(tags\\)\\)\")",
+      "Bash(cd:*)",
+      "Bash(python -c \"from backend.api.main import app; print\\(''OK - routes:'', [r.path for r in app.routes]\\)\")"
+    ]
+  }
+}

@@ -6,9 +6,11 @@ project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '../../..
 if project_root not in sys.path:
     sys.path.insert(0, project_root)
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, Depends, HTTPException
 from typing import List
 
+from backend.auth.dependencies import get_current_user
+from backend.database.models import User
 from backend.api.models import (
     CardRecommendationRequest,
     CardRecommendationResponse,
@@ -95,11 +97,11 @@ def recommend_card(request: CardRecommendationRequest):
 # ============================================
 
 @router.post("/custom", response_model=CardResponse)
-def create_custom_card(request: CustomCardCreate, user_id: int = 1):
+def create_custom_card(request: CustomCardCreate, current_user: User = Depends(get_current_user)):
     """Create a custom credit card"""
     
     success, card, errors = custom_card_service.create_custom_card(
-        user_id=user_id,
+        user_id=current_user.id,
         name=request.name,
         issuer=request.issuer,
         annual_fee=request.annual_fee,
@@ -126,11 +128,11 @@ def create_custom_card(request: CustomCardCreate, user_id: int = 1):
 # ============================================
 
 @router.post("/custom/from-url", response_model=CardResponse)
-def create_card_from_url(request: CustomCardFromURL, user_id: int = 1):
+def create_card_from_url(request: CustomCardFromURL, current_user: User = Depends(get_current_user)):
     """Create a custom card by scraping a URL"""
     
     success, card, errors = custom_card_service.create_card_from_url(
-        user_id=user_id,
+        user_id=current_user.id,
         url=request.url
     )
     
