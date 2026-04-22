@@ -48,6 +48,8 @@ coverage.xml
 # Logs
 *.log
 
-# Claude skills cache (not project code)
-.claude/skills/
-.claude/plugins/
+# Tool/IDE config (not project code)
+.claude/
+.agents/
+.junie/
+skills-lock.json
