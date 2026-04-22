@@ -1,0 +1,373 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CardOptimizer - Plaid Integration Demo</title>
+    <script src="https://cdn.plaid.com/link/v2/stable/link-initialize.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+        }
+        
+        .container {
+            background: white;
+            border-radius: 20px;
+            padding: 40px;
+            max-width: 600px;
+            width: 100%;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+        }
+        
+        h1 {
+            color: #333;
+            margin-bottom: 10px;
+            font-size: 2em;
+        }
+        
+        .subtitle {
+            color: #666;
+            margin-bottom: 30px;
+        }
+        
+        button {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            padding: 15px 30px;
+            border-radius: 10px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            width: 100%;
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+        
+        button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 20px rgba(102, 126, 234, 0.4);
+        }
+        
+        button:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+            transform: none;
+        }
+        
+        .status {
+            margin-top: 20px;
+            padding: 15px;
+            border-radius: 10px;
+            background: #f0f0f0;
+        }
+        
+        .status.success {
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+        
+        .status.error {
+            background: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+        
+        .status.info {
+            background: #d1ecf1;
+            color: #0c5460;
+            border: 1px solid #bee5eb;
+        }
+        
+        .transactions {
+            margin-top: 20px;
+            max-height: 400px;
+            overflow-y: auto;
+        }
+        
+        .transaction {
+            padding: 15px;
+            margin-bottom: 10px;
+            background: #f8f9fa;
+            border-radius: 8px;
+            border-left: 4px solid #667eea;
+        }
+        
+        .transaction-name {
+            font-weight: 600;
+            color: #333;
+        }
+        
+        .transaction-amount {
+            color: #e74c3c;
+            font-weight: 600;
+            font-size: 1.1em;
+        }
+        
+        .transaction-date {
+            color: #666;
+            font-size: 0.9em;
+        }
+        
+        .transaction-category {
+            display: inline-block;
+            padding: 4px 8px;
+            background: #667eea;
+            color: white;
+            border-radius: 4px;
+            font-size: 0.85em;
+            margin-top: 5px;
+        }
+        
+        .spending-summary {
+            margin-top: 20px;
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 15px;
+        }
+        
+        .spending-card {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 15px;
+            border-radius: 10px;
+            text-align: center;
+        }
+        
+        .spending-category {
+            font-size: 0.9em;
+            opacity: 0.9;
+            text-transform: capitalize;
+        }
+        
+        .spending-amount {
+            font-size: 1.5em;
+            font-weight: 600;
+            margin-top: 5px;
+        }
+        
+        .loading {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 3px solid rgba(255,255,255,.3);
+            border-radius: 50%;
+            border-top-color: white;
+            animation: spin 1s ease-in-out infinite;
+        }
+        
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🎴 CardOptimizer</h1>
+        <p class="subtitle">Connect your bank account to track spending and get personalized card recommendations</p>
+        
+        <button id="connectButton" onclick="openPlaidLink()">
+            Connect Bank Account
+        </button>
+        
+        <div id="status"></div>
+        <div id="transactions"></div>
+        <div id="spending"></div>
+    </div>
+
+    <script>
+        // Configuration
+        const API_URL = 'http://localhost:8000';
+        const USER_ID = 1;
+        
+        let linkToken = null;
+        let accessToken = null;
+        let handler = null;
+        
+        // Status display helper
+        function showStatus(message, type = 'info') {
+            const statusDiv = document.getElementById('status');
+            statusDiv.className = `status ${type}`;
+            statusDiv.innerHTML = message;
+        }
+        
+        // Initialize on page load
+        async function init() {
+            showStatus('🔄 Initializing Plaid...', 'info');
+            
+            try {
+                // Get link token from backend
+                const response = await fetch(`${API_URL}/plaid/create_link_token`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ user_id: USER_ID })
+                });
+                
+                const data = await response.json();
+                linkToken = data.link_token;
+                
+                showStatus('✅ Ready to connect! Click the button above.', 'success');
+                
+            } catch (error) {
+                showStatus(`❌ Error: ${error.message}. Make sure API is running on port 8000!`, 'error');
+            }
+        }
+        
+        // Open Plaid Link
+        function openPlaidLink() {
+            if (!linkToken) {
+                showStatus('⚠️ Still initializing... Please wait.', 'info');
+                return;
+            }
+            
+            handler = Plaid.create({
+                token: linkToken,
+                onSuccess: async (public_token, metadata) => {
+                    showStatus('🔄 Exchanging token...', 'info');
+                    await exchangeToken(public_token);
+                },
+                onExit: (err, metadata) => {
+                    if (err) {
+                        showStatus(`❌ Error: ${err.display_message}`, 'error');
+                    } else {
+                        showStatus('Connection cancelled', 'info');
+                    }
+                },
+                onEvent: (eventName, metadata) => {
+                    console.log('Plaid Event:', eventName, metadata);
+                }
+            });
+            
+            handler.open();
+        }
+        
+        // Exchange public token for access token
+        async function exchangeToken(publicToken) {
+            try {
+                const response = await fetch(`${API_URL}/plaid/exchange_public_token`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ public_token: publicToken })
+                });
+                
+                const data = await response.json();
+                accessToken = data.access_token;
+                
+                showStatus('✅ Connected! Fetching transactions...', 'success');
+                
+                // Fetch transactions
+                await fetchTransactions();
+                await fetchSpending();
+                
+            } catch (error) {
+                showStatus(`❌ Error: ${error.message}`, 'error');
+            }
+        }
+        
+        // Fetch transactions
+        async function fetchTransactions() {
+            try {
+                const response = await fetch(`${API_URL}/plaid/transactions`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        access_token: accessToken,
+                        days: 30
+                    })
+                });
+                
+                const data = await response.json();
+                displayTransactions(data.transactions);
+                
+            } catch (error) {
+                showStatus(`❌ Error fetching transactions: ${error.message}`, 'error');
+            }
+        }
+        
+        // Display transactions
+        function displayTransactions(transactions) {
+            const container = document.getElementById('transactions');
+            
+            if (transactions.length === 0) {
+                container.innerHTML = '<div class="status info">No transactions found in the last 30 days</div>';
+                return;
+            }
+            
+            let html = `<h3 style="margin-top: 20px; color: #333;">Recent Transactions (${transactions.length})</h3><div class="transactions">`;
+            
+            transactions.slice(0, 10).forEach(txn => {
+                html += `
+                    <div class="transaction">
+                        <div class="transaction-name">${txn.merchant_name || txn.name}</div>
+                        <div class="transaction-amount">$${txn.amount.toFixed(2)}</div>
+                        <div class="transaction-date">${txn.date}</div>
+                        ${txn.category && txn.category.length > 0 ? 
+                            `<span class="transaction-category">${txn.category[0]}</span>` : ''}
+                    </div>
+                `;
+            });
+            
+            html += '</div>';
+            container.innerHTML = html;
+        }
+        
+        // Fetch spending summary
+        async function fetchSpending() {
+            try {
+                const response = await fetch(`${API_URL}/plaid/spending`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        access_token: accessToken,
+                        days: 30
+                    })
+                });
+                
+                const data = await response.json();
+                displaySpending(data.spending);
+                
+            } catch (error) {
+                console.error('Error fetching spending:', error);
+            }
+        }
+        
+        // Display spending summary
+        function displaySpending(spending) {
+            const container = document.getElementById('spending');
+            
+            if (Object.keys(spending).length === 0) {
+                return;
+            }
+            
+            let html = '<h3 style="margin-top: 20px; color: #333;">Monthly Spending by Category</h3><div class="spending-summary">';
+            
+            for (const [category, amount] of Object.entries(spending)) {
+                html += `
+                    <div class="spending-card">
+                        <div class="spending-category">${category}</div>
+                        <div class="spending-amount">$${amount.toFixed(2)}</div>
+                    </div>
+                `;
+            }
+            
+            html += '</div>';
+            container.innerHTML = html;
+        }
+        
+        // Initialize on page load
+        init();
+    </script>
+</body>
+</html>
