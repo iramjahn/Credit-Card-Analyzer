@@ -2,7 +2,7 @@
 from typing import Dict, List
 
 class CreditCard:
-    def __init__(self, id, name, issuer, annual_fee, rewards, point_value, benefits, signup_bonus):
+    def __init__(self, id, name, issuer, annual_fee, rewards, point_value, benefits, signup_bonus, reward_caps=None):
         self.id = id
         self.name = name
         self.issuer = issuer
@@ -11,7 +11,10 @@ class CreditCard:
         self.point_value = point_value
         self.benefits = benefits
         self.signup_bonus = signup_bonus
-    
+        # Spend caps on bonus categories: {reward_key: {"cap": dollars,
+        # "period": "monthly"|"quarterly"|"annual", "post_rate": rate after cap}}
+        self.reward_caps = reward_caps or {}
+
     def __repr__(self):
         return f"CreditCard({self.name})"
 
@@ -23,7 +26,8 @@ chase_sapphire_preferred = CreditCard(
     issuer='Chase',
     annual_fee=95,
     rewards={
-        'travel': 5,
+        'chase_travel': 5,   # 5x only via the Chase Travel portal
+        'travel': 2,         # 2x on general travel booked directly
         'dining': 3,
         'online_grocery': 3,
         'streaming': 3,
@@ -56,6 +60,9 @@ amex_gold = CreditCard(
         'flights': 3,
         'default': 1
     },
+    reward_caps={
+        'groceries': {'cap': 25000, 'period': 'annual', 'post_rate': 1},
+    },
     point_value=0.01,
     benefits=[
         '$120 Uber Cash annually',
@@ -77,7 +84,7 @@ chase_freedom_unlimited = CreditCard(
     issuer='Chase',
     annual_fee=0,
     rewards={
-        'travel': 5,
+        'chase_travel': 5,   # 5x only via the Chase Travel portal
         'dining': 3,
         'drugstores': 3,
         'default': 1.5
@@ -154,8 +161,11 @@ citi_custom_cash = CreditCard(
     issuer='Citi',
     annual_fee=0,
     rewards={
-        'top_category': 5,
+        'top_category': 5,   # applies to the highest-spend eligible category
         'default': 1
+    },
+    reward_caps={
+        'top_category': {'cap': 500, 'period': 'monthly', 'post_rate': 1},
     },
     point_value=0.01,
     benefits=[
@@ -182,6 +192,9 @@ amex_blue_cash_preferred = CreditCard(
         'transit': 3,
         'default': 1
     },
+    reward_caps={
+        'groceries': {'cap': 6000, 'period': 'annual', 'post_rate': 1},
+    },
     point_value=0.01,
     benefits=[
         '$84 Disney+ credit annually',
@@ -202,8 +215,8 @@ chase_freedom_flex = CreditCard(
     issuer='Chase',
     annual_fee=0,
     rewards={
-        'rotating': 5,
-        'travel': 5,
+        'rotating': 5,       # quarterly categories, resolved conservatively
+        'chase_travel': 5,   # 5x only via the Chase Travel portal
         'dining': 3,
         'drugstores': 3,
         'default': 1

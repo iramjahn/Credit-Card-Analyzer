@@ -65,6 +65,20 @@
             cursor: not-allowed;
             transform: none;
         }
+
+        input {
+            width: 100%;
+            padding: 13px 15px;
+            margin-bottom: 12px;
+            border: 1px solid #ddd;
+            border-radius: 10px;
+            font-size: 15px;
+        }
+
+        input:focus {
+            outline: none;
+            border-color: #667eea;
+        }
         
         .status {
             margin-top: 20px;
@@ -177,11 +191,17 @@
     <div class="container">
         <h1>🎴 CardOptimizer</h1>
         <p class="subtitle">Connect your bank account to track spending and get personalized card recommendations</p>
-        
-        <button id="connectButton" onclick="openPlaidLink()">
+
+        <div id="authSection">
+            <input id="email" type="email" placeholder="Email" autocomplete="username" />
+            <input id="password" type="password" placeholder="Password (min 8 chars)" autocomplete="current-password" />
+            <button id="authButton" onclick="signIn()">Sign in / Sign up</button>
+        </div>
+
+        <button id="connectButton" onclick="openPlaidLink()" style="display:none; margin-top:15px;">
             Connect Bank Account
         </button>
-        
+
         <div id="status"></div>
         <div id="transactions"></div>
         <div id="spending"></div>
@@ -190,53 +210,93 @@
     <script>
         // Configuration
         const API_URL = 'http://localhost:8000';
-        const USER_ID = 1;
-        
+
+        let token = null;        // JWT bearer token from /auth
         let linkToken = null;
-        let accessToken = null;
         let handler = null;
-        
+
         // Status display helper
         function showStatus(message, type = 'info') {
             const statusDiv = document.getElementById('status');
             statusDiv.className = `status ${type}`;
             statusDiv.innerHTML = message;
         }
-        
-        // Initialize on page load
-        async function init() {
-            showStatus('🔄 Initializing Plaid...', 'info');
-            
+
+        // Authenticated fetch helper — attaches the bearer token.
+        async function api(path, options = {}) {
+            const headers = Object.assign(
+                { 'Content-Type': 'application/json' },
+                options.headers || {},
+                token ? { 'Authorization': `Bearer ${token}` } : {}
+            );
+            const res = await fetch(`${API_URL}${path}`, { ...options, headers });
+            const data = await res.json().catch(() => ({}));
+            if (!res.ok) {
+                const detail = data.detail ? JSON.stringify(data.detail) : res.statusText;
+                throw new Error(detail);
+            }
+            return data;
+        }
+
+        // Sign in, falling back to sign up if the account doesn't exist yet.
+        async function signIn() {
+            const email = document.getElementById('email').value.trim();
+            const password = document.getElementById('password').value;
+            if (!email || !password) {
+                showStatus('⚠️ Enter an email and password first.', 'info');
+                return;
+            }
+
+            showStatus('🔄 Signing in...', 'info');
             try {
-                // Get link token from backend
-                const response = await fetch(`${API_URL}/plaid/create_link_token`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ user_id: USER_ID })
-                });
-                
-                const data = await response.json();
-                linkToken = data.link_token;
-                
-                showStatus('✅ Ready to connect! Click the button above.', 'success');
-                
+                let data;
+                try {
+                    data = await api('/auth/login', {
+                        method: 'POST',
+                        body: JSON.stringify({ email, password })
+                    });
+                } catch (loginErr) {
+                    // No account yet (or bad creds) — try to register.
+                    showStatus('🔄 Creating a new account...', 'info');
+                    data = await api('/auth/signup', {
+                        method: 'POST',
+                        body: JSON.stringify({ email, password })
+                    });
+                }
+
+                token = data.token;
+                document.getElementById('authSection').style.display = 'none';
+                document.getElementById('connectButton').style.display = 'block';
+                showStatus(`✅ Signed in as ${data.user.email}. Initializing Plaid...`, 'success');
+                await initPlaid();
             } catch (error) {
-                showStatus(`❌ Error: ${error.message}. Make sure API is running on port 8000!`, 'error');
+                showStatus(`❌ Sign-in failed: ${error.message}`, 'error');
             }
         }
-        
+
+        // Get a Plaid Link token from the backend (requires auth).
+        async function initPlaid() {
+            try {
+                const data = await api('/plaid/create-link-token', { method: 'POST' });
+                linkToken = data.link_token;
+                showStatus('✅ Ready to connect! Click "Connect Bank Account".', 'success');
+            } catch (error) {
+                showStatus(`❌ Error initializing Plaid: ${error.message}. Is the API running on port 8000?`, 'error');
+            }
+        }
+
         // Open Plaid Link
         function openPlaidLink() {
             if (!linkToken) {
                 showStatus('⚠️ Still initializing... Please wait.', 'info');
                 return;
             }
-            
+
             handler = Plaid.create({
                 token: linkToken,
                 onSuccess: async (public_token, metadata) => {
                     showStatus('🔄 Exchanging token...', 'info');
-                    await exchangeToken(public_token);
+                    await exchangeToken(public_token, metadata);
                 },
                 onExit: (err, metadata) => {
                     if (err) {
@@ -249,110 +309,85 @@
                     console.log('Plaid Event:', eventName, metadata);
                 }
             });
-            
+
             handler.open();
         }
-        
-        // Exchange public token for access token
-        async function exchangeToken(publicToken) {
+
+        // Exchange the public token, then load data.
+        async function exchangeToken(publicToken, metadata) {
             try {
-                const response = await fetch(`${API_URL}/plaid/exchange_public_token`, {
+                await api('/plaid/exchange-token', {
                     method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ public_token: publicToken })
+                    body: JSON.stringify({
+                        public_token: publicToken,
+                        institution_name: metadata?.institution?.name || null
+                    })
                 });
-                
-                const data = await response.json();
-                accessToken = data.access_token;
-                
+
                 showStatus('✅ Connected! Fetching transactions...', 'success');
-                
-                // Fetch transactions
                 await fetchTransactions();
                 await fetchSpending();
-                
             } catch (error) {
                 showStatus(`❌ Error: ${error.message}`, 'error');
             }
         }
-        
-        // Fetch transactions
+
+        // Fetch transactions (GET, authenticated)
         async function fetchTransactions() {
             try {
-                const response = await fetch(`${API_URL}/plaid/transactions`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        access_token: accessToken,
-                        days: 30
-                    })
-                });
-                
-                const data = await response.json();
+                const data = await api('/plaid/transactions', { method: 'GET' });
                 displayTransactions(data.transactions);
-                
             } catch (error) {
                 showStatus(`❌ Error fetching transactions: ${error.message}`, 'error');
             }
         }
-        
+
         // Display transactions
         function displayTransactions(transactions) {
             const container = document.getElementById('transactions');
-            
-            if (transactions.length === 0) {
-                container.innerHTML = '<div class="status info">No transactions found in the last 30 days</div>';
+
+            if (!transactions || transactions.length === 0) {
+                container.innerHTML = '<div class="status info">No transactions found</div>';
                 return;
             }
-            
+
             let html = `<h3 style="margin-top: 20px; color: #333;">Recent Transactions (${transactions.length})</h3><div class="transactions">`;
-            
+
             transactions.slice(0, 10).forEach(txn => {
                 html += `
                     <div class="transaction">
-                        <div class="transaction-name">${txn.merchant_name || txn.name}</div>
+                        <div class="transaction-name">${txn.name}</div>
                         <div class="transaction-amount">$${txn.amount.toFixed(2)}</div>
                         <div class="transaction-date">${txn.date}</div>
-                        ${txn.category && txn.category.length > 0 ? 
-                            `<span class="transaction-category">${txn.category[0]}</span>` : ''}
+                        ${txn.category ? `<span class="transaction-category">${txn.category}</span>` : ''}
                     </div>
                 `;
             });
-            
+
             html += '</div>';
             container.innerHTML = html;
         }
-        
-        // Fetch spending summary
+
+        // Fetch spending summary (GET, authenticated)
         async function fetchSpending() {
             try {
-                const response = await fetch(`${API_URL}/plaid/spending`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        access_token: accessToken,
-                        days: 30
-                    })
-                });
-                
-                const data = await response.json();
+                const data = await api('/plaid/spending', { method: 'GET' });
                 displaySpending(data.spending);
-                
             } catch (error) {
                 console.error('Error fetching spending:', error);
             }
         }
-        
+
         // Display spending summary
         function displaySpending(spending) {
             const container = document.getElementById('spending');
-            
-            if (Object.keys(spending).length === 0) {
+
+            if (!spending || Object.keys(spending).length === 0) {
                 return;
             }
-            
-            let html = '<h3 style="margin-top: 20px; color: #333;">Monthly Spending by Category</h3><div class="spending-summary">';
-            
+
+            let html = '<h3 style="margin-top: 20px; color: #333;">Spending by Category</h3><div class="spending-summary">';
+
             for (const [category, amount] of Object.entries(spending)) {
                 html += `
                     <div class="spending-card">
@@ -361,13 +396,10 @@
                     </div>
                 `;
             }
-            
+
             html += '</div>';
             container.innerHTML = html;
         }
-        
-        // Initialize on page load
-        init();
     </script>
 </body>
 </html>

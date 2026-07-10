@@ -2,16 +2,15 @@
 
 from typing import Dict, List, Tuple
 
+from backend.core.categories import VALID_REWARD_KEYS
+
 
 class CardValidator:
     """Validates credit card data before creation or update"""
 
-    VALID_CATEGORIES = {
-        'dining', 'groceries', 'travel', 'gas', 'drugstores',
-        'entertainment', 'shopping', 'streaming', 'transit',
-        'flights', 'hotels', 'online_grocery', 'rotating',
-        'top_category', 'chase_travel', 'default'
-    }
+    # A card's rewards dict may key off any spending category plus the
+    # structural reward keys (default, rotating, top_category, ...).
+    VALID_CATEGORIES = VALID_REWARD_KEYS
 
     MAX_REWARD_RATE = 20.0
 

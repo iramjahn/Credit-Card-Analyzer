@@ -6,11 +6,7 @@ from pydantic import BaseModel
 from typing import Optional, List
 from backend.database.connection import get_db
 from backend.database.models import Transaction
-
-VALID_CATEGORIES = {
-    "dining", "groceries", "travel", "flights", "hotels",
-    "streaming", "transit", "drugstores", "other"
-}
+from backend.core.categories import SPENDING_CATEGORY_SET as VALID_CATEGORIES
 
 router = APIRouter(prefix="/transactions", tags=["transactions"])
 

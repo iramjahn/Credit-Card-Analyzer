@@ -47,6 +47,7 @@ class CardRecommendationResponse(BaseModel):
     reward_rate: float
     points_earned: int
     cash_value: float
+    note: Optional[str] = None  # caveat, e.g. top-category cards
 
 class CustomCardCreate(BaseModel):
     """Request to create custom card"""
@@ -72,44 +73,31 @@ class CardResponse(BaseModel):
     benefits: List[str]
 
 # ============================================
-# Transaction Models
+# Annual Value Models
 # ============================================
 
-class TransactionCreate(BaseModel):
-    """Request to create transaction"""
-    card_id: Optional[str] = None
-    amount: float
-    category: str
-    merchant_name: Optional[str] = None
-    notes: Optional[str] = None
+class AnnualValueRequest(BaseModel):
+    """Monthly spend per category, e.g. {"dining": 400, "travel": 200}."""
+    monthly_spending: Dict[str, float]
 
-class TransactionResponse(BaseModel):
-    """Response with transaction data"""
-    id: int
-    card_id: Optional[str]
-    amount: float
-    category: str
-    merchant_name: Optional[str]
-    transaction_date: str
-    notes: Optional[str]
+class AnnualValueResponse(BaseModel):
+    """Annualized rewards value for a card given a spending profile."""
+    card_id: str
+    card_name: str
+    total_value: float          # gross rewards value over a year
+    annual_fee: int
+    net_value: float            # total_value minus the annual fee
+    roi: Optional[float]        # net value as a % of the fee (None if no fee)
 
 # ============================================
 # Benefit Models
 # ============================================
 
-class BenefitUsageUpdate(BaseModel):
-    """Request to update benefit usage"""
-    card_id: str
-    benefit_name: str
-    amount_used: float
-
-class BenefitResponse(BaseModel):
-    """Response with benefit data"""
+class CardBenefitInfo(BaseModel):
+    """A single card benefit with its parsed monetary value and reset cadence."""
     card_id: str
     card_name: str
     benefit_name: str
-    total_value: float
-    used_value: float
-    remaining_value: float
-    reset_period: str
+    estimated_value: float
+    reset_period: str           # 'annual' | 'monthly' | 'one-time' | 'none'
     days_until_reset: Optional[int]

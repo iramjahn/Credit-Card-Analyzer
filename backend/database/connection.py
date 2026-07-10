@@ -4,7 +4,11 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker, DeclarativeBase
 import os
 
-DB_PATH = os.path.join(os.path.dirname(__file__), "cardoptimizer.db")
+# Override with CARDOPTIMIZER_DB (used by the test suite for an isolated DB).
+DB_PATH = os.getenv(
+    "CARDOPTIMIZER_DB",
+    os.path.join(os.path.dirname(__file__), "cardoptimizer.db"),
+)
 DATABASE_URL = f"sqlite:///{DB_PATH}"
 
 engine = create_engine(DATABASE_URL, connect_args={"check_same_thread": False})

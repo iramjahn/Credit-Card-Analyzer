@@ -2,10 +2,10 @@
 
 from typing import List, Dict
 
-CATEGORIES = [
-    "dining", "groceries", "travel", "flights", "hotels",
-    "streaming", "transit", "drugstores", "other"
-]
+from backend.core.categories import SPENDING_CATEGORIES, DEFAULT_SPENDING_CATEGORY
+
+# Feature-vector dimensions, in canonical order (see backend/core/categories.py).
+CATEGORIES = SPENDING_CATEGORIES
 
 def build_spending_vector(transactions: List[Dict]) -> Dict[str, float]:
     """
@@ -15,7 +15,7 @@ def build_spending_vector(transactions: List[Dict]) -> Dict[str, float]:
     """
     totals = {cat: 0.0 for cat in CATEGORIES}
     for tx in transactions:
-        cat = tx["category"] if tx["category"] in totals else "other"
+        cat = tx["category"] if tx["category"] in totals else DEFAULT_SPENDING_CATEGORY
         totals[cat] += tx["amount"]
 
     total_spend = sum(totals.values())

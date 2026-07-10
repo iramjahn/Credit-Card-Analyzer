@@ -47,6 +47,12 @@ class PlaidTransactionsResponse(BaseModel):
     total: int
 
 
+class PlaidSpendingResponse(BaseModel):
+    user_id: int
+    spending: dict[str, float]
+    total: float
+
+
 # ── Mock helpers ──────────────────────────────────────────────────────────────
 
 def _mock_link_token(user_id: int) -> dict:
@@ -101,4 +107,19 @@ def get_transactions(current_user: User = Depends(get_current_user)):
         user_id=current_user.id,
         transactions=[PlaidTransaction(**t) for t in txs],
         total=len(txs),
+    )
+
+
+@router.get("/spending", response_model=PlaidSpendingResponse)
+def get_spending(current_user: User = Depends(get_current_user)):
+    """Summarize the authenticated user's transactions as spend-by-category."""
+    # TODO: replace with real Plaid data aggregated from transactions_get
+    txs = _mock_transactions(current_user.id)
+    spending: dict[str, float] = {}
+    for t in txs:
+        spending[t["category"]] = round(spending.get(t["category"], 0.0) + t["amount"], 2)
+    return PlaidSpendingResponse(
+        user_id=current_user.id,
+        spending=spending,
+        total=round(sum(spending.values()), 2),
     )

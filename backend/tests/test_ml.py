@@ -95,3 +95,44 @@ def test_recommender_favors_dining_card_for_heavy_diner():
     result = recommender.recommend_for_vector(vector)
     # AmEx Gold (amex-gold) or Chase Sapphire Preferred should rank highly for dining
     assert result["card_id"] in ["amex-gold", "csp", "chase-freedom-flex"]
+
+
+def test_recommendation_uses_direct_scoring():
+    """Production recommendation must be the argmax card for the user's own vector."""
+    recommender = CardRecommender()
+    recommender.train()
+    vector = {
+        "dining": 0.10, "groceries": 0.55, "travel": 0.0, "flights": 0.0,
+        "hotels": 0.0, "streaming": 0.10, "transit": 0.10, "drugstores": 0.05, "other": 0.10
+    }
+    from backend.core.card_database import CARD_DATABASE
+
+    result = recommender.recommend_for_vector(vector)
+    best = max(recommender._score_card(c, vector) for c in CARD_DATABASE)
+    assert result["estimated_annual_value"] == round(best, 2)
+
+
+def test_recommendation_includes_segment_label():
+    recommender = CardRecommender()
+    recommender.train()
+    vector = {
+        "dining": 0.15, "groceries": 0.05, "travel": 0.30, "flights": 0.25,
+        "hotels": 0.20, "streaming": 0.0, "transit": 0.0, "drugstores": 0.0, "other": 0.05
+    }
+    result = recommender.recommend_for_vector(vector)
+    assert result["segment"] == "frequent_traveler"
+
+
+def test_cold_start_blends_toward_cluster_center():
+    """One transaction shouldn't fully define the profile."""
+    recommender = CardRecommender()
+    recommender.train()
+    one_tx = [{"category": "dining", "amount": 50}]
+    many_tx = [{"category": "dining", "amount": 50}] * 20
+
+    sparse = recommender.recommend_for_user(one_tx)
+    dense = recommender.recommend_for_user(many_tx)
+    # Both return valid recommendations; the sparse one is smoothed
+    assert "card_id" in sparse and "card_id" in dense
+    # With 20 pure-dining transactions the profile is extreme; value estimates differ
+    assert sparse["estimated_annual_value"] != dense["estimated_annual_value"]
