@@ -15,6 +15,7 @@ from backend.api.routes.cards import router as cards_router
 from backend.api.routes.transactions import router as transactions_router
 from backend.api.routes.ml import router as ml_router
 from backend.api.routes.plaid import router as plaid_router
+from backend.api.routes.ingest import router as ingest_router
 from backend.database.connection import init_db
 
 @asynccontextmanager
@@ -42,6 +43,7 @@ app.include_router(cards_router)
 app.include_router(transactions_router)
 app.include_router(ml_router)
 app.include_router(plaid_router)
+app.include_router(ingest_router)
 
 @app.get("/")
 def read_root():
